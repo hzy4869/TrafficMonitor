@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+  <vType id="background" length="7.00" maxSpeed="5.00" color="155,89,182" tau="1.0"/>
+
+  <flow id="ramdom_wave1" type="background" begin="0" end="1200" period="35">
+    <route edges="E15 E16 E18"/>
+  </flow>
+
+  <flow id="ramdom_wave2" type="background" begin="0" end="1200" period="35">
+    <route edges="E0 E6 E14"/>
+  </flow>
+
+  <flow id="main_wave" type="background" begin="15" end="20" period="0.75">
+    <route edges="E7 E2 E10 E11 E17"/>
+  </flow>
+  <flow id="sub_wave" type="background" begin="30.5" end="35.5" period="1">
+    <route edges="E0 E3 E4 E5"/>
+  </flow>
+
+  <flow id="main_wave2" type="background" begin="305" end="310" period="1">
+    <route edges="E7 E2 E10 E11 E17"/>
+  </flow>
+  <flow id="sub_wave2" type="background" begin="310.5" end="317.5" period="0.75">
+    <route edges="E0 E3 E4 E5"/>
+  </flow>
+
+</routes>

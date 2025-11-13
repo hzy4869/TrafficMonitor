@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+  <!-- 定义车辆类型 -->
+  <vType id="car" length="7.00" maxSpeed="5.00" color="155,89,182" tau="1.0"/>
+
+  <!-- 背景流（持续 1 小时，每 50s 一波，每波 3 辆车） -->
+  <flow id="background_flow" type="car" begin="0" end="3600" period="50">
+    <route edges="E0 E1 E2"/>
+  </flow>
+
+  <flow id="background_flow1" type="car" begin="3" end="3600" period="50">
+    <route edges="E0 E1 E2"/>
+  </flow>
+
+</routes>
