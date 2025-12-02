@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<routes>
+    <!-- 定义两种车辆类型，颜色不同方便观察 -->
+    <vType id="car1" accel="2.6" decel="4.5" sigma="0.5" length="5.0" minGap="2.5" maxSpeed="13.89" color="1,0,0"/>
+    <vType id="car2" accel="2.6" decel="4.5" sigma="0.5" length="5.0" minGap="2.5" maxSpeed="13.89" color="1,1,1"/>
+
+    <!-- 车流1：从 E0 -> E1 -> E4 -> E9 -->
+    <route id="r1" edges="E0 E1 E4 E9"/>
+
+    <!-- 定义10辆车，每辆车都有独立id 和 depart时间 -->
+    <vehicle id="car1_0" type="car1" route="r1" depart="0"/>
+    <vehicle id="car1_1" type="car1" route="r1" depart="1"/>
+    <vehicle id="car1_2" type="car1" route="r1" depart="2"/>
+    <vehicle id="car1_3" type="car1" route="r1" depart="3"/>
+    <vehicle id="car1_4" type="car1" route="r1" depart="4"/>
+    <vehicle id="car1_5" type="car1" route="r1" depart="5"/>
+    <vehicle id="car1_6" type="car1" route="r1" depart="6"/>
+
+    <!-- 车流2：从 E2 -> E5 -> E6 -> E9 -->
+    <route id="r2" edges="E2 E7 E10 E11"/>
+
+    <!-- 定义7辆车 -->
+    <vehicle id="car2_0" type="car2" route="r2" depart="5"/>
+    <vehicle id="car2_1" type="car2" route="r2" depart="6"/>
+    <vehicle id="car2_2" type="car2" route="r2" depart="7"/>
+    <vehicle id="car2_3" type="car2" route="r2" depart="8"/>
+    <vehicle id="car2_4" type="car2" route="r2" depart="9"/>
+    <vehicle id="car2_5" type="car2" route="r2" depart="10"/>
+    <vehicle id="car2_6" type="car2" route="r2" depart="11"/>
+
+</routes>

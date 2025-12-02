@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-11-13 22:23:46 by Eclipse SUMO GUI Version 1.24.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\osm.net.xml"/>
+        <route-files value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\roadtest.rou.xml"/>
+        <additional-files value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\../add/tls.add.xml,C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\ ../add/e2.add.xml"/>
+    </input>
+
+    <gui_only>
+        <gui-settings-file value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\viewsettings.xml"/>
+    </gui_only>
+
+</sumoConfiguration>
+-->
+
+<tlsSwitches xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tlsswitches_file.xsd">
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_0" toLane="1125597092#2_0" begin="0.00" end="79.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_1" toLane="1125597092#2_1" begin="0.00" end="79.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_2" toLane="1125597092#2_2" begin="0.00" end="79.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_3" toLane="1125597092#2_3" begin="0.00" end="79.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_0" toLane="1125597092#2_0" begin="90.00" end="169.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_1" toLane="1125597092#2_1" begin="90.00" end="169.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_2" toLane="1125597092#2_2" begin="90.00" end="169.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_3" toLane="1125597092#2_3" begin="90.00" end="169.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_0" toLane="1125597092#2_0" begin="180.00" end="259.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_1" toLane="1125597092#2_1" begin="180.00" end="259.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_2" toLane="1125597092#2_2" begin="180.00" end="259.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_3" toLane="1125597092#2_3" begin="180.00" end="259.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_0" toLane="1125597092#2_0" begin="270.00" end="349.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_1" toLane="1125597092#2_1" begin="270.00" end="349.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_2" toLane="1125597092#2_2" begin="270.00" end="349.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_3" toLane="1125597092#2_3" begin="270.00" end="349.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_0" toLane="1125597092#2_0" begin="360.00" end="439.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_1" toLane="1125597092#2_1" begin="360.00" end="439.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_2" toLane="1125597092#2_2" begin="360.00" end="439.00" duration="79.00"/>
+   <tlsSwitch id="6742070435" programID="0" fromLane="1125597092#1.222_3" toLane="1125597092#2_3" begin="360.00" end="439.00" duration="79.00"/>
+</tlsSwitches>

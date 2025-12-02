@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-11-13 22:23:46 by Eclipse SUMO GUI Version 1.24.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\osm.net.xml"/>
+        <route-files value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\roadtest.rou.xml"/>
+        <additional-files value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\../add/tls.add.xml,C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\ ../add/e2.add.xml"/>
+    </input>
+
+    <gui_only>
+        <gui-settings-file value="C:\Users\hzysg\Desktop\RL\TrafficMonitor-wrapper_modification\sumo_envs\LONG_GANG_modified\env\viewsettings.xml"/>
+    </gui_only>
+
+</sumoConfiguration>
+-->
+
+<tlsStates xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tlsstates_file.xsd">
+    <tlsState time="0.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="0" state="GGGggGGGGggrrrrrr"/>
+    <tlsState time="39.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="1" state="yyyyyyyyyyyrrrrrr"/>
+    <tlsState time="45.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="2" state="GrrrrrrrrrrGGGGGg"/>
+    <tlsState time="84.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="3" state="yrrrrrrrrrryyyyyy"/>
+    <tlsState time="90.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="0" state="GGGggGGGGggrrrrrr"/>
+    <tlsState time="129.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="1" state="yyyyyyyyyyyrrrrrr"/>
+    <tlsState time="135.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="2" state="GrrrrrrrrrrGGGGGg"/>
+    <tlsState time="174.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="3" state="yrrrrrrrrrryyyyyy"/>
+    <tlsState time="180.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="0" state="GGGggGGGGggrrrrrr"/>
+    <tlsState time="219.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="1" state="yyyyyyyyyyyrrrrrr"/>
+    <tlsState time="225.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="2" state="GrrrrrrrrrrGGGGGg"/>
+    <tlsState time="264.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="3" state="yrrrrrrrrrryyyyyy"/>
+    <tlsState time="270.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="0" state="GGGggGGGGggrrrrrr"/>
+    <tlsState time="309.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="1" state="yyyyyyyyyyyrrrrrr"/>
+    <tlsState time="315.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="2" state="GrrrrrrrrrrGGGGGg"/>
+    <tlsState time="354.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="3" state="yrrrrrrrrrryyyyyy"/>
+    <tlsState time="360.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="0" state="GGGggGGGGggrrrrrr"/>
+    <tlsState time="399.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="1" state="yyyyyyyyyyyrrrrrr"/>
+    <tlsState time="405.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="2" state="GrrrrrrrrrrGGGGGg"/>
+    <tlsState time="444.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="3" state="yrrrrrrrrrryyyyyy"/>
+    <tlsState time="450.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="0" state="GGGggGGGGggrrrrrr"/>
+    <tlsState time="489.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="1" state="yyyyyyyyyyyrrrrrr"/>
+    <tlsState time="495.00" id="cluster_2462979734_5552125519_5552125520_5552126222_#6more" programID="0" phase="2" state="GrrrrrrrrrrGGGGGg"/>
+</tlsStates>

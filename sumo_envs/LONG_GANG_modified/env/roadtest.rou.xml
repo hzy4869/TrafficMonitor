@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+  <vType id="ego" length="5.00" color="26,188,156" tau="1.0" maxSpeed="5"/>
+
+  <!-- ================= 主要道路车团 ================= -->
+  <!-- 1号路：右上到左下 (1125790983#2 1125684496#0 1125684496#1 1125597092#1) -->
+  <!-- 2号路：上左上到右下 (219056200#2 219058189#2 219058189#3) -->
+  <!-- 3号路：下右下到左上 (1131230259#0 239700065#3 239700065#4 1125678574 1125597093#1) -->
+
+  <!-- ================= 次要道路零星车辆 ================= -->
+  <!-- 下左上到右下 (1125691753#1 219060439#2 219060439#3) -->
+  <!-- <flow id="side1_flow" type="ego" begin="0" end="1200" period="30">
+    <route edges="1125691753#1 219060439#2 219060439#3"/>
+  </flow> -->
+  <!-- 左下到右上 (1125695391#0.789 1125695392#0 1125695392#7.174) -->
+  <!-- <flow id="side2_flow" type="ego" begin="0" end="1200" period="30">
+    <route edges="1125695391#0.789 1125695392#0 1125695392#7.174"/>
+  </flow> -->
+  <!-- 上右下到左上 (E3 1125793701#2 1125793701#3 E0) -->
+  <!-- <flow id="side3_flow" type="ego" begin="0" end="1200" period="30">
+    <route edges="E3 1125793701#2 1125793701#3 E0"/>
+  </flow> -->
+
+
+  <!-- 左下出发，到右上拥堵 （优先出发，车流先多后少） -->
+  <flow id="route3_wave1" type="ego" begin="7" number="10" period="0.5" departLane="random">
+    <route edges="239700065#4 1125678574 1125695392#0 1125695392#7.174"/>
+  </flow>
+  <!-- <flow id="route1_wave1" type="ego" begin="8" number="11" period="0.25" departLane="random">
+    <route edges="1125790983#2 1125684496#0 1125684496#1"/>
+  </flow> -->
+
+
+  <!-- 右下出发，到右上拥堵 （延迟出发，车流先少后多） -->
+  <flow id="route2_wave2" type="ego" begin="30" number="13" period="0.75" departLane="random">
+    <route edges="E3 1125793701#2 1125793701#3 E0"/>
+  </flow>
+  <!-- <flow id="route3_wave2" type="ego" begin="353" number="6" period="0.5" departLane="random">
+    <route edges="1131230259#0 239700065#3 239700065#4 1125678574 1125597093#1"/>
+  </flow> -->
+
+
+<!--  &lt;!&ndash; 波次3 (125秒)：3号路(5辆) &ndash;&gt;-->
+<!--  <flow id="route3_wave3" type="ego" begin="500" end="505" period="0.5">-->
+<!--    <route edges="219056200#2 219058189#2 219058189#3"/>-->
+<!--  </flow>-->
+
+</routes>
