@@ -2,33 +2,19 @@
 @Author: HU Zeyun
 description: to be determined.
 '''
-import random
 import os
-
 from tensorflow.python.ops.special_math_ops import bessel_y0
 
 os.environ['OMP_NUM_THREADS'] = '1'
 import numpy as np
 import gymnasium as gym
-import math
 from gymnasium.core import Env
-from typing import Any, SupportsFloat, Tuple, Dict
-from typing import List
-from collections import defaultdict, deque, Counter
-
-from numpy import floating
-from sklearn.neighbors import KDTree
-from sklearn.cluster import KMeans
+from collections import deque
 
 
 class ACEnvWrapper(gym.Wrapper):
     """
-    Simplified Aircraft Wrapper
-    功能：
-    - 仅包含三点 A/B/C
-    - B 在 step=30 之后才出现
-    - 每步奖励 -1
-    - 距离目标点 < 50 给奖励 +5（每个点只奖励一次）
+
     """
 
     def __init__(self, env: Env, aircraft_inits, max_states: int = 3):
@@ -36,84 +22,117 @@ class ACEnvWrapper(gym.Wrapper):
 
         self.initial_pos = np.array(aircraft_inits["drone_1"]["position"])
         self.speed = aircraft_inits["drone_1"]["speed"]
-
-        # 历史轨迹（暂保留你的结构）
-        self._pos_set = deque([self.initial_pos] * max_states, maxlen=max_states)
-
-        # -----------------------
-        # 定义三个检测点 A/B/C
-        # -----------------------
-        self.point_A =  np.array([1700, 1400, 0])
-        self.point_B =  np.array([1700, 1600, 0])
-        self.point_C =  np.array([1900, 1600, 0])
-
-        self.target_points = {
-            "A": self.point_A,
-            "B": self.point_B,
-            "C": self.point_C,
-        }
-
-        # 记录每个点是否已被覆盖
-        self.covered = {k: False for k in self.target_points}
-
-        # step counter
-        self.step_count = 0
-
-        # 保留动作映射
+        self._pos_set = deque([self.initial_pos[:2]] * max_states, maxlen=max_states)
         speed = self.speed
         self.air_actions = {
             0: (speed, 0), 1: (speed, 1), 2: (speed, 2), 3: (speed, 3),
             4: (speed, 4), 5: (speed, 5), 6: (speed, 6), 7: (speed, 7),
-            8: (0, 0), 9: (0, 2), 10:(0, 4), 11:(0, 6)
         }
-
-        # 记录哪些 target 已经“可见”
-        self.visible_targets = {
-            "A": False,
-            "B": False,
-            "C": False,
+        
+        # stable-- not need to update in reset
+        # (x, y, step): x, y means the init pos. step means that point occur on that step.
+        self.points = {
+            "A": np.array([1700, 1400, 0]),
+            "B": np.array([1800, 1500, 30]),
+            "C": np.array([1900, 1400, 0]),
+            "D": np.array([1800, 1300, 30]),
+            "E": np.array([2000, 1300, 0])
         }
-
-        # 记录出现后的坐标
-        self.target_locations = {
-            "A": (0.0, 0.0),
-            "B": (0.0, 0.0),
-            "C": (0.0, 0.0),
+        self.boundary = {
+            "xmin": 1600,
+            "xmax": 2100,
+            "ymin": 1200,
+            "ymax": 1600,
         }
+        self.grid_size = 100
+        self.grid_stay_counter = {}
 
-        # ----- 为 A/B/C 创建独立区块 (x±70, y±70) -----
-        self.zone_radius = 70
+        # sequential: A, B, C, D, E
+        self.visible_set = [False] * len(self.points)
+        self.reward_bins = [
+            (100, 50, 1.0),
+            (50, 40, 2.0),
+            (40, 30, 3.0),
+            (30, 20, 4.0),
+            (20, 10, 8.0),
+            (10, 0, 12.0)
+        ]
 
-        self.zones = {}
-        for key, point in self.target_points.items():
-            px, py = point[:2]
-            self.zones[key] = {
-                "xmin": px - self.zone_radius,
-                "xmax": px + self.zone_radius,
-                "ymin": py - self.zone_radius,
-                "ymax": py + self.zone_radius,
-                "visited": False,       # 是否第一次进入过
-                "stay_count": 0         # 在区块中的停留计步
-            }
+        self.grid_size = 100
+        self.grid_x_num = (self.boundary["xmax"] - self.boundary["xmin"]) // self.grid_size  # 5
+        self.grid_y_num = (self.boundary["ymax"] - self.boundary["ymin"]) // self.grid_size  # 4
+        self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
 
-        self.distance_stage = {k: set() for k in ["A", "B", "C"]}
+
+        self.covered = {key: [False]*len(self.reward_bins) for key in self.points.keys()}
+        self.global_step_count = 0
+
+        self.log_file = "log_record.txt"
 
 
     @property
     def action_space(self):
-        return gym.spaces.Discrete(12)
+        return gym.spaces.Discrete(8)
     
     @property
     def observation_space(self):
         spaces = {
-            "ac_attr": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(9,)),
-            # "target_rel": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(6,)),
+            "ac_attr": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32),
+            "target_rel": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5, 1), dtype=np.float32),
+            "vis_and_cover": gym.spaces.Box(low=0, high=1, shape=(5, 2), dtype=np.int32),
+            "grid_counter": gym.spaces.Box(
+                low=0,
+                high=np.inf,
+                shape=(self.grid_y_num, self.grid_x_num),
+                dtype=np.int32
+            ),
         }
-        dict_space = gym.spaces.Dict(spaces)
-        return dict_space
+        return gym.spaces.Dict(spaces)
+
+    
+    def log_if_enter_range(self, key, point, pos, threshold=100):
+        """
+        如果无人机进入 key 点（例如 B 或 D）100 米范围，写入日志。
+        """
+        dist = np.linalg.norm(pos[:2] - point[:2])
+        if dist <= threshold:
+            with open(self.log_file, "a") as f:
+                f.write(f"Step {self.global_step_count}: Drone within {threshold}m of point {key}, "
+                        f"DronePos=({pos[0]:.2f},{pos[1]:.2f}), "
+                        f"Target=({point[0]},{point[1]})\n")
+                
+
+    def update_grid_counter(self, pos):
+        x, y = pos[:2]
+
+        # 判断是否在边界内
+        if not (self.boundary["xmin"] <= x < self.boundary["xmax"] and
+                self.boundary["ymin"] <= y < self.boundary["ymax"]):
+            return  # 不在区域内，不计数
+
+        # 映射成 grid index
+        gx = int((x - self.boundary["xmin"]) // self.grid_size)   # 0~4
+        gy = int((y - self.boundary["ymin"]) // self.grid_size)   # 0~3
+
+        # 更新计数
+        self.grid_counter[gy, gx] += 1
+
+
+
+    def update_visible_set(self):
+        """
+        根据 self.global_step_count 更新 self.visible_set。
+        如果当前步数 >= 对应点的 step，则该点可见。
+        """
+        self.global_step_count += 1
+        self.visible_set = [
+            self.global_step_count >= point[2]  # 第三个元素是 step
+            for point in self.points.values()
+        ]
+
 
     # ------------------------------
-    # 简化 state_wrapper
+    # state_wrapper
     # ------------------------------
     def state_wrapper(self, state):
         aircraft = state["aircraft"]
@@ -121,146 +140,110 @@ class ACEnvWrapper(gym.Wrapper):
         pos = np.array(drone["position"])
 
         # 更新无人机历史位置
-        self._pos_set.append(pos)
-        
-        target_rel = []
-        for key in ["A", "B", "C"]:
-            target_rel.append(self.target_locations[key])
-        target_rel = np.array(target_rel).reshape(-1)
-
+        self._pos_set.append(pos[:2])
         ac_attr = np.array(self._pos_set).reshape(-1)
-        ac_attr_norm = (ac_attr - ac_attr.mean()) / (ac_attr.std() + 1e-8)
-        target_rel_flat = target_rel.flatten()
-        target_rel_norm = (target_rel_flat - target_rel_flat.mean()) / (target_rel_flat.std() + 1e-8)
+
+        ## 坐标/距离
+        target_rel = np.array([
+            # point[:2] - pos[:2]       # (dx, dy)
+            [np.linalg.norm(point[:2] - pos[:2])]
+            for key, point in self.points.items()
+        ])
+
+        vis_and_cover = np.array([
+            [
+                int(vis),                              # 可见性：1/0
+                int(self.covered[key][-1])             # 是否已拿完奖励：1/0
+            ]
+            for (key, point), vis in zip(self.points.items(), self.visible_set)
+        ])
+
+        self.update_grid_counter(pos)
 
         # 构造简单观测
         obs = {
             "ac_attr": ac_attr,
-            # "target_rel": target_rel_flat,
+            "target_rel": target_rel,
+            "vis_and_cover": vis_and_cover,
+            "grid_counter": self.grid_counter.copy(),
         }
+        # print(obs)
         return obs, {}
 
     # ------------------------------
     # 奖励函数
     # ------------------------------
     def reward_wrapper(self, drone_pos):
-        reward = -1   # 每步 -1
+        reward = 0
+        done = False
 
-        # B 在 step < 30 时不算出现
-        active_points = ["A", "C"]
-        if self.step_count >= 30:
-            active_points.append("B")
+        # boundary penalty
+        x, y = drone_pos[:2]
+        if (x < self.boundary["xmin"] or x > self.boundary["xmax"] or
+            y < self.boundary["ymin"] or y > self.boundary["ymax"]):
+            reward -= 2
 
-        for key in ["A", "B", "C"]:
-            if key in active_points:
-                self.visible_targets[key] = True
-                rel_pos = self.target_points[key][:2] - drone_pos[:2]
-                self.target_locations[key] = rel_pos
-            else:
-                self.target_locations[key] = np.array([0.0, 0.0])
+        # 每步默认 -1
+        # 每吃掉一个点，step成本减少
+        num_covered = sum(self.covered[key][-1] for key in self.points.keys())
+        step_cost = -1 + 0.2 * num_covered
+        reward += step_cost
 
-        reward_bins = [
-            (100, 50, 1.0),
-            (50, 40, 2.0),
-            (40, 30, 3.0),
-            (30, 20, 4.0),
-            (20, 10, 8.0),
-        ]
-        # 遍历检测点
-        final_reward = 12.0
-        # 遍历所有激活点
-        for key in active_points:
-            point = self.target_points[key]
+        # 遍历每个点
+        for key, point in self.points.items():
             dist = np.linalg.norm(drone_pos[:2] - point[:2])
 
-            # 最终成功奖励（只给一次）
-            if dist < 10:
-                if "final" not in self.distance_stage[key]:
-                    reward += final_reward
-                    self.distance_stage[key].add("final")
-                    self.covered[key] = True
+            # 只考虑可见点
+            idx = list(self.points.keys()).index(key)
+            if not self.visible_set[idx]:
                 continue
 
-            # 分段奖励
-            for (high, low, r) in reward_bins:
-                stage_name = f"{high}-{low}"
-                if dist < high and dist >= low:
-                    if stage_name not in self.distance_stage[key]:
-                        reward += r
-                        self.distance_stage[key].add(stage_name)
-                        # print('add reward:', r)
+            # 遍历各阶段奖励
+            for i, (upper, lower, r) in enumerate(self.reward_bins):
+                if lower < dist <= upper and not self.covered[key][i]:
+                    reward += r
+                    self.covered[key][i] = True  # 该阶段奖励只给一次
+                    break  # 一个阶段匹配后就退出
 
-        # # ------------------------------------------
-        # # ② 新增：区块奖励 + 停留惩罚 (核心修改部分)
-        # # ------------------------------------------
-        # x, y = drone_pos[0], drone_pos[1]
-        # for key in active_points:
-        #     zone = self.zones[key]
 
-        #     inside = (zone["xmin"] <= x <= zone["xmax"]) and \
-        #              (zone["ymin"] <= y <= zone["ymax"])
+        # 区块停留/探索奖励
+        gx = int((x - self.boundary["xmin"]) // self.grid_size)
+        gy = int((y - self.boundary["ymin"]) // self.grid_size)
+        if 0 <= gx < self.grid_x_num and 0 <= gy < self.grid_y_num:
+            count = self.grid_counter[gy, gx]
+            if count == 0:
+                reward += 0.5
+            elif count > 100:
+                reward -= 0.5
 
-        #     if inside:
-        #         # 第一次进入：奖励
-        #         if not zone["visited"]:
-        #             zone["visited"] = True
-        #             reward += 1.0      # ← 区块进入奖励（你可自己调）
 
-        #         # 在区块内停留，计步
-        #         zone["stay_count"] += 1
+        # done 判断：所有点全部覆盖
+        if all(all(v) for v in self.covered.values()):
+            done = True
 
-        #         # 停留惩罚
-        #         if zone["stay_count"] >= 80:
-        #             reward -= 1.0      # ← 停留惩罚
-        #             print("give a penalty for staying too long")
-        #     else:
-        #         # 离开区块，重置计步
-        #         zone["stay_count"] = 0
-
-        done = all(self.covered.values())
         return reward, done
+
 
     # ------------------------------
     # reset
     # ------------------------------
     def reset(self, seed=1):
         env_state = self.env.reset()
-        self.step_count = 0
-        self.covered = {k: False for k in self.target_points}
-                # 记录哪些 target 已经“可见”
-        self.visible_targets = {
-            "A": False,
-            "B": False,
-            "C": False,
-        }
-
-        # 记录出现后的坐标
-        self.target_locations = {
-            "A": (0.0, 0.0),
-            "B": (0.0, 0.0),
-            "C": (0.0, 0.0),
-        }
-
-        for key, point in self.target_points.items():
-            px, py = point[:2]
-            self.zones[key] = {
-                "xmin": px - self.zone_radius,
-                "xmax": px + self.zone_radius,
-                "ymin": py - self.zone_radius,
-                "ymax": py + self.zone_radius,
-                "visited": False,       # 是否第一次进入过
-                "stay_count": 0         # 在区块中的停留计步
-            }
-        self.distance_stage = {k: set() for k in ["A", "B", "C"]}
         obs, _ = self.state_wrapper(env_state)
+
+        self.visible_set = [False] * len(self.points)
+        self.covered = {key: [False]*len(self.reward_bins) for key in self.points.keys()}
+        self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
+        self.grid_stay_counter = {}
+
         return obs, {"step_time": 0}
 
     # ------------------------------
     # step
     # ------------------------------
     def step(self, action):
+        self.update_visible_set()
 
-        # 转换 action 格式（保留你原先的写法）
         if isinstance(action, np.int64):
             new_actions = {"drone_1": self.air_actions[action]}
         else:
@@ -268,10 +251,12 @@ class ACEnvWrapper(gym.Wrapper):
 
         states, _, truncated, dones, infos = super().step(new_actions)
 
-        self.step_count += 1
 
         # 获取无人机位置
         pos = np.array(states["aircraft"]["drone_1"]["position"])
+
+        # for key in ["B", "C"]:
+        #     self.log_if_enter_range(key, self.points[key], pos)
 
         # state wrapper
         obs, _ = self.state_wrapper(states)
@@ -279,14 +264,5 @@ class ACEnvWrapper(gym.Wrapper):
         infos["pos_drone"] = pos
 
         x, y = pos[0], pos[1]
-        # print("x",x)
-        # print("y", y)
-        if not (1500 <= x <= 2000 and 1000 <= y <= 1700):
-            # done_flag = True
-            # infos["out_of_boundary"] = True
-            reward -= 2.0
-     
-
-        # print(reward)
 
         return obs, reward, truncated, done_flag, infos

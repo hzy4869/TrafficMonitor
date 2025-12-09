@@ -9,6 +9,7 @@ import torch
 import os
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 
 import sys
 sys.path.append(' ./')
@@ -46,9 +47,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_envs', type=int, default=1, help='The number of environments')
     parser.add_argument('--policy_model', type=str, default="fusion", help='policy network: baseline_models or fusion_models_0')
     parser.add_argument('--features_dim', type=int, default=512, help='The dimension of output features 64')
-    parser.add_argument('--num_seconds', type=int, default=200, help='exploration steps')
+    parser.add_argument('--num_seconds', type=int, default=500, help='exploration steps')
     parser.add_argument('--n_steps', type=int, default=512, help='The number of steps in each environment') #500
-    parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of PPO') #5e-4
+    parser.add_argument('--lr', type=float, default=5e-4, help='The learning rate of PPO') #5e-4
     parser.add_argument('--batch_size', type=int, default=32, help='The batch size of PPO')
     parser.add_argument('--cuda_id', type=int, default=0, help='The id of cuda device')
     args = parser.parse_args()  # Parse the arguments
@@ -72,7 +73,7 @@ if __name__ == '__main__':
             "aircraft_type": "drone",
             "action_type": "horizontal_movement", # combined_movement
             # "position": (0, 0, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
-            "position": (1750, 1200, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
+            "position": (1650, 1550, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
             "if_sumo_visualization": True, "img_file": path_convert('./asset/drone.png'),
             "custom_update_cover_radius": custom_update_cover_radius  # 使用自定义覆盖范围的计算
         },
@@ -101,6 +102,13 @@ if __name__ == '__main__':
 
     # 使用模型进行测试
     obs = env.reset()
+    points_dict = {
+        "A": np.array([1700, 1400, 0]),
+        "B": np.array([1800, 1500, 30]),
+        "C": np.array([1900, 1400, 0]),
+        "D": np.array([1800, 1300, 30]),
+        "E": np.array([2000, 1300, 0])
+    }
     dones = False  # 默认是 False
     total_reward = 0.0
     total_steps = 0
@@ -114,12 +122,6 @@ if __name__ == '__main__':
         current_pos = infos[0]["pos_drone"][:2]
         trajectory.append(current_pos.copy())
         total_reward += rewards
-        # cover_efficiency = env.get_attr('cover_efficiency')[0]
-        # total_steps += 1
-        # if cover_efficiency is None:
-        #     continue
-        # efficiency = [i+j for i,j in zip(efficiency, cover_efficiency)]
-        # count += 1
         print(rewards)
 
     # render_map(
@@ -135,55 +137,37 @@ if __name__ == '__main__':
     print(f'累积奖励为, {total_reward}.')
     print(f"total steps:{total_steps}.")
 
-    # print(trajectory)
-    # import numpy as np
-    import matplotlib.pyplot as plt
-
+    ## 绘图
     # 将轨迹变成 numpy array: shape (T,2)
     drone_traj = np.array(trajectory)
-
-    # 固定点 A/B/C
-    point_A = np.array([1700, 1400])
-    point_B = np.array([1700, 1600])
-    point_C = np.array([1900, 1600])
 
     plt.figure(figsize=(8,8))
 
     # 绘制无人机轨迹
-    plt.plot(drone_traj[:,0], drone_traj[:,1], '-o', markersize=2, label="Drone Trajectory (10 m/s)")
+    drone_traj = np.array(trajectory)
+    plt.plot(drone_traj[:,0], drone_traj[:,1], '-o', markersize=2, label="Drone Trajectory")
 
-    # ---- 初始点 Start ----
+    # 绘制起点
     start_x, start_y = drone_traj[0]
     plt.scatter(start_x, start_y, s=150, c='blue', marker='s')
     plt.text(start_x + 5, start_y + 5, "Start", fontsize=12, color='blue')
 
-    # 绘制固定点
-    plt.scatter(point_A[0], point_A[1], s=120, c='red', marker='*', label='A')
-    plt.scatter(point_B[0], point_B[1], s=120, c='green', marker='*', label='B')
-    plt.scatter(point_C[0], point_C[1], s=120, c='orange', marker='*', label='C')
+    # 绘制目标点
+    target_points = np.array([v[:2] for v in points_dict.values()])  # 只取 x,y
+    point_names = list(points_dict.keys())  # ['A', 'B', 'C', 'D', 'E']
+    point_steps = np.array([v[2] for v in points_dict.values()])  # 可用于标注出现顺序
 
-    # 标注 A / B / C
-    plt.text(point_A[0]+5, point_A[1]+5, "A", fontsize=12, color='red')
-    plt.text(point_B[0]+5, point_B[1]+5, "B", fontsize=12, color='green')
-    plt.text(point_C[0]+5, point_C[1]+5, "C", fontsize=12, color='orange')
+    colors = plt.cm.get_cmap('tab10', len(target_points))
+    for i, (pt, name, step) in enumerate(zip(target_points, point_names, point_steps)):
+        plt.scatter(pt[0], pt[1], s=120, c=[colors(i)], marker='*', label=f'{name} (step {step})')
+        plt.text(pt[0]+5, pt[1]+5, f'{name}', fontsize=12, color=colors(i))
 
-    # ---- 添加说明文字（学术式注释，不复杂） ----
-    plt.annotate(
-        "Activation rule:\n"
-        "Step 0 : A, C\n"
-        "Step 30: B",
-        xy=(1900, 1400),
-        fontsize=12,
-        bbox=dict(boxstyle="round", fc="white", ec="black")
-    )
-
-    plt.title("Drone Trajectory with Points A, B, C")
-    plt.xlabel("X (meters)")
-    plt.ylabel("Y (meters)")
+    plt.title("Drone Trajectory with Points from ACEnvWrapper")
+    plt.xlabel("X/m")
+    plt.ylabel("Y/m")
     plt.grid(True)
     plt.axis("equal")
     plt.legend()
-
-    plt.savefig('./drone_trajectory_ABC.jpg', dpi=300)
+    plt.savefig('./drone_trajectory.jpg', dpi=300)
     plt.show()
 

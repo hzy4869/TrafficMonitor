@@ -4,7 +4,7 @@ import math
 from typing import List
 
 from env_utils.ac_env import ACEnvironment
-from env_utils.ac_wrapper_modified import ACEnvWrapper
+from env_utils.ac_wrapper_path_plan import ACEnvWrapper
 from stable_baselines3 import PPO
 
 # import libsumo
@@ -33,7 +33,7 @@ aircraft_inits = {
     'drone_1': {
         "aircraft_type": "drone",
         "action_type": "horizontal_movement",
-        "position": (1750, 1200, 50), 
+        "position": (1650, 1550, 50), 
         "speed": 10, 
         "heading": (1, 1, 0), 
         "communication_range": 50,

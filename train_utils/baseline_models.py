@@ -1,79 +1,70 @@
-'''
-@Author: Ricca
-@Date: 2024-07-16
-@Description: Custom Model
-@LastEditTime: 2025-07-15
-@LastEditors: Jiachen
-'''
 import gym
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import torch
 
-class CustomModel(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.Space, features_dim: int ):
-        """特征提取网络
-        """
-        super().__init__(observation_space, features_dim)
-        ac_attr_dim = observation_space["ac_attr"].shape[0]
-        veh_pos_dim = observation_space["relative_vecs"].shape[0]
-        # bound_dim = observation_space["bound_dist"].shape[0]
-        break_spot_dim = observation_space["break_spot"].shape[0]
 
-        self.hidden_dim = 32
-        self.linear_encoder_ac = nn.Sequential(
-            nn.Linear(ac_attr_dim, self.hidden_dim),
+class CustomModel(BaseFeaturesExtractor):
+    def __init__(self, observation_space: gym.Space, features_dim: int):
+        super().__init__(observation_space, features_dim)
+
+        # ============= 取出每个 observation 维度 =============
+        ac_attr_dim = observation_space["ac_attr"].shape[0]           # 6
+        target_rel_dim = observation_space["target_rel"].shape[0] * observation_space["target_rel"].shape[1]  # 5*2
+        vis_cover_dim = observation_space["vis_and_cover"].shape[0] * observation_space["vis_and_cover"].shape[1]  # 5*2
+        grid_dim = observation_space["grid_counter"].shape[0]          # 100
+
+        hidden = 32
+
+        # ============= 编码 ac_attr =============
+        self.encoder_ac = nn.Sequential(
+            nn.Linear(ac_attr_dim, hidden),
             nn.ReLU(),
         )
-        self.linear_encoder_veh_pos = nn.Sequential(
-            nn.Linear(veh_pos_dim, self.hidden_dim),
+
+        # ============= 编码 target_rel（展平） =============
+        self.encoder_target = nn.Sequential(
+            nn.Linear(target_rel_dim, hidden),
             nn.ReLU(),
         )
-        # self.linear_encoder_bound = nn.Sequential(
-        #     nn.Linear(bound_dim, self.hidden_dim),
-        #     nn.ReLU(),
-        # )
-        self.linear_encoder_veh_info = nn.Sequential(
-            nn.Linear(1, self.hidden_dim),
+
+        # ============= 编码 vis_and_cover（展平） =============
+        self.encoder_vis = nn.Sequential(
+            nn.Linear(vis_cover_dim, hidden),
             nn.ReLU(),
         )
-        self.linear_encoder_spot_info = nn.Sequential(
-            nn.Linear(break_spot_dim, self.hidden_dim),
+
+        # ============= 编码 grid_counts =============
+        self.encoder_grid = nn.Sequential(
+            nn.Linear(grid_dim, hidden),
             nn.ReLU(),
         )
-        self.linear_encoder_has_veh = nn.Sequential(
-            nn.Linear(1, self.hidden_dim),
-            nn.ReLU(),
-        )
+
+        # 最终 concat：4个 * 32 维
+        concat_dim = hidden * 4
 
         self.output = nn.Sequential(
-            nn.Linear(32+32+32+32+32, 256),
+            nn.Linear(concat_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Linear(128, features_dim)
+            nn.Linear(128, features_dim),
         )
 
     def forward(self, observations):
-        ac_attr = observations["ac_attr"]
-        veh_pos = observations["relative_vecs"]#.reshape(-1)
-        veh_covered = observations["cover_counts"]
-        #bound = observations["bound_dist"]
-        break_spot = observations["break_spot"]
-        has_veh = observations["no_vehicles"]
+        # --- 取数据 ---
+        ac = observations["ac_attr"]                           # (batch,6)
+        target = observations["target_rel"].reshape(ac.shape[0], -1)     # (batch,10)
+        vis = observations["vis_and_cover"].reshape(ac.shape[0], -1)     # (batch,10)
+        grid = observations["grid_counter"]                     # (batch,100)
 
-        # for k, v in observations.items():
-        #     print(k,"shape",v.shape)
+        # --- 编码 ---
+        ac_f = self.encoder_ac(ac)
+        target_f = self.encoder_target(target)
+        vis_f = self.encoder_vis(vis)
+        grid_f = self.encoder_grid(grid)
 
-        ac_feat = self.linear_encoder_ac(ac_attr)
-        veh_feat = self.linear_encoder_veh_pos(veh_pos)
-        #bound_feat = self.linear_encoder_bound(bound)
-        covered_feat = self.linear_encoder_veh_info(veh_covered)
-        break_feat = self.linear_encoder_spot_info(break_spot)
-        vehicle_feat = self.linear_encoder_has_veh(has_veh)
+        # --- 合并 ---
+        cat = torch.cat([ac_f, target_f, vis_f, grid_f], dim=1)
 
-        # action_feat,
-        # all_feature_output = self.output(
-        # torch.cat([ac_feat, veh_feat,break_feat], dim=1))
-        all_feature_output = self.output(torch.cat([ac_feat, veh_feat, covered_feat, break_feat, vehicle_feat], dim=1))
-        return all_feature_output
+        return self.output(cat)

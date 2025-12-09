@@ -54,9 +54,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_envs', type=int, default=20, help='The number of environments')
     parser.add_argument('--policy_model', type=str, default="fusion", help='policy network: baseline_models or fusion_models_0')
     parser.add_argument('--features_dim', type=int, default=512, help='The dimension of output features 64')
-    parser.add_argument('--num_seconds', type=int, default=200, help='exploration steps')
+    parser.add_argument('--num_seconds', type=int, default=500, help='exploration steps')
     parser.add_argument('--n_steps', type=int, default=512, help='The number of steps in each environment') #500
-    parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of PPO') #5e-4
+    parser.add_argument('--lr', type=float, default=5e-4, help='The learning rate of PPO') #5e-4
     parser.add_argument('--batch_size', type=int, default=32, help='The batch size of PPO')
     parser.add_argument('--cuda_id', type=int, default=0, help='The id of cuda device')
     args = parser.parse_args()  # Parse the arguments
@@ -75,17 +75,10 @@ if __name__ == '__main__':
             "aircraft_type": "drone",
             "action_type": "horizontal_movement", # combined_movement
             # "position": (0, 0, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
-            "position": (1750, 1200, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
+            "position": (1650, 1550, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
             "if_sumo_visualization": True, "img_file": path_convert('./asset/drone.png'),
             "custom_update_cover_radius": custom_update_cover_radius  # 使用自定义覆盖范围的计算
         },
-        # 'drone_2': {
-        #     "aircraft_type": "drone",
-        #     "action_type": "horizontal_movement",
-        #     "position":(1814, 1314, 50), "speed":10, "heading":(1,1,0), "communication_range":50,
-        #     "if_sumo_visualization": True, "img_file": path_convert('./asset/drone.png'),
-        #     "custom_update_cover_radius":custom_update_cover_radius # 使用自定义覆盖范围的计算
-        # },
     }
 
     # #########
@@ -114,7 +107,7 @@ if __name__ == '__main__':
     env = SubprocVecEnv([make_env(env_index=f'{i}', **params) for i in range(args.num_envs)]) # multiprocess
     # env = VecNormalize(env, norm_obs=False, norm_reward=True)
     env = VecNormalize(env, norm_obs=True, norm_obs_keys=[
-        "ac_attr"], norm_reward=True)
+        "ac_attr", "target_rel", "grid_counter"], norm_reward=True)
     # env = VecNormalize(env, norm_obs=False, norm_reward=True)
 
     # #########
@@ -182,7 +175,7 @@ if __name__ == '__main__':
                 device=device,
                 # ent_coef=0.04\\\\\\\\\
             )
-    model.learn(total_timesteps=5e5, tb_log_name='UAM', callback=callback_list) #3e5 1e6
+    model.learn(total_timesteps=3e6, tb_log_name='UAM', callback=callback_list) #3e5 1e6
 
     # #################
     # 保存 model 和 env

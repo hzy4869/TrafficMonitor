@@ -6,7 +6,7 @@
 '''
 import gymnasium as gym
 from env_utils.ac_env import ACEnvironment
-from env_utils.ac_wrapper_modified import ACEnvWrapper
+from env_utils.ac_wrapper_path_plan import ACEnvWrapper
 from stable_baselines3.common.monitor import Monitor
 
 def make_env(
