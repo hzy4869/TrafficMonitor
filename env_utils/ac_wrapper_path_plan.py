@@ -35,7 +35,7 @@ class ACEnvWrapper(gym.Wrapper):
             "A": np.array([1700, 1400, 0]),
             "B": np.array([1800, 1500, 30]),
             "C": np.array([1900, 1400, 0]),
-            "D": np.array([1800, 1300, 30]),
+            "D": np.array([1900, 1300, 55]),
             "E": np.array([2000, 1300, 0])
         }
         self.boundary = {
@@ -78,7 +78,7 @@ class ACEnvWrapper(gym.Wrapper):
     def observation_space(self):
         spaces = {
             "ac_attr": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32),
-            "target_rel": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5, 1), dtype=np.float32),
+            "target_rel": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(5, 3), dtype=np.float32),
             "vis_and_cover": gym.spaces.Box(low=0, high=1, shape=(5, 2), dtype=np.int32),
             "grid_counter": gym.spaces.Box(
                 low=0,
@@ -146,7 +146,8 @@ class ACEnvWrapper(gym.Wrapper):
         ## 坐标/距离
         target_rel = np.array([
             # point[:2] - pos[:2]       # (dx, dy)
-            [np.linalg.norm(point[:2] - pos[:2])]
+            # [np.linalg.norm(point[:2] - pos[:2])]
+            np.append(point[:2] - pos[:2], np.linalg.norm(point[:2] - pos[:2]))
             for key, point in self.points.items()
         ])
 
@@ -186,7 +187,11 @@ class ACEnvWrapper(gym.Wrapper):
         # 每步默认 -1
         # 每吃掉一个点，step成本减少
         num_covered = sum(self.covered[key][-1] for key in self.points.keys())
-        step_cost = -1 + 0.2 * num_covered
+        # step_cost = -1 + 0.2 * num_covered
+        if num_covered != 5:
+            step_cost = -1
+        else:
+            step_cost = 0
         reward += step_cost
 
         # 遍历每个点
@@ -235,6 +240,7 @@ class ACEnvWrapper(gym.Wrapper):
         self.covered = {key: [False]*len(self.reward_bins) for key in self.points.keys()}
         self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
         self.grid_stay_counter = {}
+        self.global_step_count = 0
 
         return obs, {"step_time": 0}
 

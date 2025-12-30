@@ -173,7 +173,7 @@ if __name__ == '__main__':
                 # policy_kwargs=policy_kwargs, 
                 tensorboard_log=tensorboard_path, 
                 device=device,
-                # ent_coef=0.04\\\\\\\\\
+                ent_coef=0.01
             )
     model.learn(total_timesteps=3e6, tb_log_name='UAM', callback=callback_list) #3e5 1e6
 
