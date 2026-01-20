@@ -1,7 +1,7 @@
 '''
-@Author: Ricca
-@Date: 2024-07-16
-@Description: 基于 Stabe Baseline3 控制单飞行汽车接送乘客 ### traffic monitor
+@Author: Zeyun Hu
+@Date: 2026-1-19
+@Description: 
 @LastEditTime:
 '''
 import sys
@@ -32,7 +32,8 @@ from stable_baselines3.common.callbacks import (
 
 path_convert = get_abs_path(__file__)
 logger.remove()
-set_logger(path_convert('./'), file_log_level="ERROR", terminal_log_level="ERROR")
+# set logger似乎没什么作用
+# set_logger(path_convert('./'), file_log_level="ERROR", terminal_log_level="ERROR")
 
 def custom_update_cover_radius(position:List[float], communication_range:float) -> float:
     """自定义的更新地面覆盖半径的方法, 在这里实现您的自定义逻辑
@@ -45,13 +46,12 @@ def custom_update_cover_radius(position:List[float], communication_range:float) 
     cover_radius = height / np.tan(math.radians(75/2))
     return cover_radius
 
-
-if __name__ == '__main__':
+def get_config():
     parser = argparse.ArgumentParser(description='Parameters.')
     parser.add_argument('--env_name', type=str, default="LONG_GANG_modified", help='The name of environment')
     # parser.add_argument('--env_name', type=str, default="Nguyen_Dupuis", help='The name of environment')
     parser.add_argument('--speed', type=int, default=160, help="100,160,320") # speed决定了地图的scale
-    parser.add_argument('--num_envs', type=int, default=20, help='The number of environments')
+    parser.add_argument('--num_envs', type=int, default=8, help='The number of environments')
     parser.add_argument('--policy_model', type=str, default="fusion", help='policy network: baseline_models or fusion_models_0')
     parser.add_argument('--features_dim', type=int, default=512, help='The dimension of output features 64')
     parser.add_argument('--num_seconds', type=int, default=500, help='exploration steps')
@@ -60,14 +60,11 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=32, help='The batch size of PPO')
     parser.add_argument('--cuda_id', type=int, default=0, help='The id of cuda device')
     args = parser.parse_args()  # Parse the arguments
-    device = f'cuda:{args.cuda_id}' if torch.cuda.is_available() else 'cpu'
-
+    
     # #########
     # Init
     # #########
     sumo_cfg = path_convert(f"./sumo_envs/{args.env_name}/env/osm.sumocfg")
-    # sumo_cfg = path_convert(f"./sumo_envs/{args.env_name}/ND_env/resized_rectangle.sumocfg")
-    # net_file = path_convert(f"./sumo_envs/{args.env_name}/osm.net.xml")
     print(sumo_cfg)
 
     aircraft_inits = {
@@ -75,11 +72,16 @@ if __name__ == '__main__':
             "aircraft_type": "drone",
             "action_type": "horizontal_movement", # combined_movement
             # "position": (0, 0, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
-            "position": (1650, 1550, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
+            "position": (1062, 1282, 50), "speed": 20, "heading": (1, 1, 0), "communication_range": 50,
             "if_sumo_visualization": True, "img_file": path_convert('./asset/drone.png'),
             "custom_update_cover_radius": custom_update_cover_radius  # 使用自定义覆盖范围的计算
         },
     }
+    return args, aircraft_inits, sumo_cfg
+
+if __name__ == '__main__':
+    args, aircraft_inits, sumo_cfg = get_config()
+    device = f'cuda:{args.cuda_id}' if torch.cuda.is_available() else 'cpu'
 
     # #########
     # Save Path
@@ -107,7 +109,7 @@ if __name__ == '__main__':
     env = SubprocVecEnv([make_env(env_index=f'{i}', **params) for i in range(args.num_envs)]) # multiprocess
     # env = VecNormalize(env, norm_obs=False, norm_reward=True)
     env = VecNormalize(env, norm_obs=True, norm_obs_keys=[
-        "ac_attr", "target_rel", "grid_counter"], norm_reward=True)
+        "ac_attr", "target_rel"], norm_reward=True)
     # env = VecNormalize(env, norm_obs=False, norm_reward=True)
 
     # #########
@@ -132,33 +134,6 @@ if __name__ == '__main__':
 
     callback_list = CallbackList([checkpoint_callback, eval_callback])
 
-    # #########
-    # Training
-    # #########
-    # if args.policy_model.split("_")[0] == "baseline":
-    #     from train_utils.baseline_models import CustomModel
-    #     policy_models = CustomModel
-    # elif args.policy_model.split("_")[0] == "fusion":
-    #     # model_version = args.policy_model.split("_")[-1]
-    #     # if model_version == "0":
-    #     #     from train_utils.fusion_models_v0 import FusionModel # ac_wrapper 最原版的reward
-
-    #     # if model_version == "0":
-    #     # from train_utils.new_model import EnhancedTrafficFeatureExtractor
-    #     # policy_models = EnhancedTrafficFeatureExtractor
-
-    #     from train_utils.model import CustomModelWithTrans
-    #     policy_models = CustomModelWithTrans
-
-
-    #     # policy_models = FusionModel
-    # else:
-    #     raise ValueError("Invalid policy network type.")
-
-    # policy_kwargs = dict(\
-    #     features_extractor_class=policy_models,
-    #     features_extractor_kwargs=dict(features_dim=args.features_dim,), # 27 44 43 64
-    # )
     from train_utils.baseline_models import CustomModel
     policy_models = CustomModel
 
@@ -173,14 +148,13 @@ if __name__ == '__main__':
                 # policy_kwargs=policy_kwargs, 
                 tensorboard_log=tensorboard_path, 
                 device=device,
-                ent_coef=0.01
+                ent_coef=0.03
             )
     model.learn(total_timesteps=3e6, tb_log_name='UAM', callback=callback_list) #3e5 1e6
 
     # #################
     # 保存 model 和 env
-    # #################
-    env.save(f'{model_path}/last_vec_normalize.pkl')
+    # #################    env.save(f'{model_path}/last_vec_normalize.pkl')
     model.save(f'{model_path}/last_rl_model.zip')
     print('训练结束, 达到最大步数.')
 

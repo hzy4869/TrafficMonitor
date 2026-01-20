@@ -12,7 +12,7 @@ class CustomModel(BaseFeaturesExtractor):
         ac_attr_dim = observation_space["ac_attr"].shape[0]           # 6
         target_rel_dim = observation_space["target_rel"].shape[0] * observation_space["target_rel"].shape[1]  # 5*2
         vis_cover_dim = observation_space["vis_and_cover"].shape[0] * observation_space["vis_and_cover"].shape[1]  # 5*2
-        grid_dim = observation_space["grid_counter"].shape[0]          # 100
+        # grid_dim = observation_space["grid_counter"].shape[0]          # 100
 
         hidden = 32
 
@@ -34,14 +34,14 @@ class CustomModel(BaseFeaturesExtractor):
             nn.ReLU(),
         )
 
-        # ============= 编码 grid_counts =============
-        self.encoder_grid = nn.Sequential(
-            nn.Linear(grid_dim, hidden),
-            nn.ReLU(),
-        )
+        # # ============= 编码 grid_counts =============
+        # self.encoder_grid = nn.Sequential(
+        #     nn.Linear(grid_dim, hidden),
+        #     nn.ReLU(),
+        # )
 
         # 最终 concat：4个 * 32 维
-        concat_dim = hidden * 4
+        concat_dim = hidden * 3
 
         self.output = nn.Sequential(
             nn.Linear(concat_dim, 256),
@@ -56,7 +56,7 @@ class CustomModel(BaseFeaturesExtractor):
         ac = observations["ac_attr"]                           # (batch,6)
         target = observations["target_rel"].reshape(ac.shape[0], -1)     # (batch,10)
         vis = observations["vis_and_cover"].reshape(ac.shape[0], -1)     # (batch,10)
-        grid = observations["grid_counter"]                     # (batch,100)
+        # grid = observations["grid_counter"]                     # (batch,100)
 
         # --- 编码 ---
         ac_f = self.encoder_ac(ac)

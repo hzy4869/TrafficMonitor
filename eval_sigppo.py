@@ -25,9 +25,12 @@ from env_utils.make_tsc_env import make_env
 from typing import List
 from env_utils.vis_snir import render_map
 from stable_baselines3.common.vec_env import DummyVecEnv
+import matplotlib.image as mpimg
 
 path_convert = get_abs_path(__file__)
 logger.remove()
+
+from train_sigppo import get_config
 
 def custom_update_cover_radius(position:List[float], communication_range:float) -> float:
     """自定义的更新地面覆盖半径的方法, 在这里实现您的自定义逻辑
@@ -41,61 +44,26 @@ def custom_update_cover_radius(position:List[float], communication_range:float) 
     return cover_radius
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Parameters.')
-    parser.add_argument('--env_name', type=str, default="LONG_GANG_modified", help='The name of environment')
-    # parser.add_argument('--env_name', type=str, default="Nguyen_Dupuis", help='The name of environment')
-    parser.add_argument('--speed', type=int, default=160, help="100,160,320") # speed决定了地图的scale
-    parser.add_argument('--num_envs', type=int, default=1, help='The number of environments')
-    parser.add_argument('--policy_model', type=str, default="fusion", help='policy network: baseline_models or fusion_models_0')
-    parser.add_argument('--features_dim', type=int, default=512, help='The dimension of output features 64')
-    parser.add_argument('--num_seconds', type=int, default=500, help='exploration steps')
-    parser.add_argument('--n_steps', type=int, default=512, help='The number of steps in each environment') #500
-    parser.add_argument('--lr', type=float, default=5e-4, help='The learning rate of PPO') #5e-4
-    parser.add_argument('--batch_size', type=int, default=32, help='The batch size of PPO')
-    parser.add_argument('--cuda_id', type=int, default=0, help='The id of cuda device')
-    args = parser.parse_args()  # Parse the arguments
+    args, aircraft_inits, sumo_cfg = get_config()
+    args.num_envs = 1
     device = f'cuda:{args.cuda_id}' if torch.cuda.is_available() else 'cpu'
-    # #########
-    # Init Env
-    # #########
-
+    
     log_path = path_convert('./eval_log/')
     if not os.path.exists(log_path):
         os.makedirs(log_path)
-    # args.env_name = "Nguyen_Dupuis"
-    sumo_cfg = path_convert(f"./sumo_envs/{args.env_name}/env/osm.sumocfg")
-    # sumo_cfg = path_convert(f"./sumo_envs/{args.env_name}/osm.sumocfg")
-    # sumo_cfg = path_convert(f"./sumo_envs/Nguyen_Dupuis/ND_env/resized_rectangle.sumocfg")
-    # net_file = path_convert(f"./sumo_envs/{args.env_name}/{args.env_name}.net.xml")
-
-
-    aircraft_inits = {
-        'drone_1': {
-            "aircraft_type": "drone",
-            "action_type": "horizontal_movement", # combined_movement
-            # "position": (0, 0, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
-            "position": (1650, 1550, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
-            "if_sumo_visualization": True, "img_file": path_convert('./asset/drone.png'),
-            "custom_update_cover_radius": custom_update_cover_radius  # 使用自定义覆盖范围的计算
-        },
-    }
 
     params = {
         'num_seconds': args.num_seconds,
         'sumo_cfg': sumo_cfg,
-        'use_gui': True,
+        'use_gui': False,
         'log_file': log_path,
         'aircraft_inits': aircraft_inits,
     }
     param_name = f'explore_{args.num_seconds}_n_steps_{args.n_steps}_lr_{str(args.lr)}_batch_size_{args.batch_size}'
-
     env = SubprocVecEnv([make_env(env_index=f'{i}', **params) for i in range(args.num_envs)])  # multiprocess
     env = VecNormalize.load(load_path=path_convert(f'Result/{args.env_name}/speed_{args.speed}/{args.policy_model}/{param_name}/models/best_vec_normalize.pkl'), venv=env)
-
     env.training = False  # 测试的时候不要更新
     env.norm_reward = False
-
-    #model_path = path_convert(f'./{args.passenger_type}/{args.env_name}/P{args.passenger_len}/speed_{args.speed}/snir_{args.snir_min}/{args.policy_model}/{param_name}/models/best_model.zip')
     model_path = path_convert(f'Result/{args.env_name}/speed_{args.speed}/{args.policy_model}/{param_name}/models/best_model.zip')
     print(model_path)
 
@@ -103,13 +71,6 @@ if __name__ == '__main__':
 
     # 使用模型进行测试
     obs = env.reset()
-    points_dict = {
-        "A": np.array([1700, 1400, 0]),
-        "B": np.array([1800, 1500, 30]),
-        "C": np.array([1900, 1400, 0]),
-        "D": np.array([1900, 1300, 55]),
-        "E": np.array([2000, 1300, 0])
-    }
 
     dones = False
     total_reward = 0.0
@@ -132,118 +93,83 @@ if __name__ == '__main__':
     print(f'累积奖励为, {total_reward}.')
     print(f"total steps:{total_steps}.")
 
-    # render_map(
-    #     trajectories=env.get_attr('ac_trajectories')[0],
-    #     veh_trajectories=env.get_attr('veh_trajectories')[0],
-    #     cluster_point=env.get_attr('cluster_point')[0],
-    #     img_path=path_convert("./temp_trajectories.jpg")
-    # )
-
-    env.close()
-    # print(f"total count:{count}.")
-    # print(f'cover_efficiency, {np.array(efficiency)/count}.')
-    print(f'累积奖励为, {total_reward}.')
-    print(f"total steps:{total_steps}.")
-
 
     #########
     ## 绘图
-    drone_traj = np.array(trajectory)
-    total_steps = len(drone_traj)
+    
+    # ==================== 接口参数 (调整这里) ====================
+    # 1. 缩放与平移接口
+    SCALE_FACTOR = 1.5    # 整体缩放系数 (1.0表示原始比例，数值越大地图在坐标系中越大)
+    IMAGE_X_OFFSET = 550.0  # 图片在X轴的偏移量
+    IMAGE_Y_OFFSET = 450.0  # 图片在Y轴的偏移量
 
-    # 统一设置字体参数
-    FONT_SIZE = 14
-    FONT_WEIGHT = 'bold'
-    LINE_WIDTH = 3 # 增加线条宽度，使其更醒目
+    # 2. 轨迹微调 (如果轨迹相对于地图有偏移)
+    TRAJ_X_OFFSET = 0.0
+    TRAJ_Y_OFFSET = 0.0
+    # ==========================================================
 
-    plt.figure(figsize=(12, 10)) # 进一步加大图幅
+    # 轨迹数据处理
+    trajectory_np = np.array(trajectory)
+    points_dict = {
+        "A": np.array([1408, 955, 0]),
+        "B": np.array([1817, 1387, 30]),
+        "C": np.array([2063, 1053, 0]),
+        "D": np.array([1978, 776, 55]),
+        "E": np.array([2553, 861, 0])
+    }
 
-    # --- 1. 获取关键步骤时间 ---
-    point_info = [
-        (key, val[2])
-        for key, val in points_dict.items()
-        if val[2] > 0
-    ]
-    point_info.sort(key=lambda x: x[1])
+    # 绘制初始化
+    plt.figure(figsize=(12, 10))
 
-    phase_colors = ['gray', 'orange', 'red', 'green', 'purple', 'brown']
-    phase_labels = ["Initial Points"]
-    phase_steps = [0]
-
-    for i, (name, step) in enumerate(point_info):
-        phase_steps.append(step)
-        phase_labels.append(f"After {name} (Step {step})")
-
-    # --- 2. 绘制轨迹：根据点出现的步骤进行分段着色 ---
-
-    for i in range(len(phase_steps)):
-        start_step = phase_steps[i]
-        end_step = phase_steps[i+1] if i + 1 < len(phase_steps) else total_steps
-
-        start_idx = min(start_step, total_steps - 1)
-        end_idx = min(end_step, total_steps)
+    # 读取图片并计算等比例范围
+    img_path = f"./sumo_envs/{args.env_name}/env/osm.png"
+    if os.path.exists(img_path):
+        img = mpimg.imread(img_path)
+        img_h, img_w = img.shape[:2] # 获取图片像素高度和宽度
         
-        if end_idx > start_idx:
-            if start_idx > 0:
-                current_traj = drone_traj[start_idx-1:end_idx]
-            else:
-                current_traj = drone_traj[start_idx:end_idx]
-
-            plt.plot(current_traj[:, 0], current_traj[:, 1], 
-                    color=phase_colors[i % len(phase_colors)], 
-                    linewidth=LINE_WIDTH, 
-                    label=f"Phase {i+1}: {phase_labels[i]}")
-
-    # --- 3. 绘制起点和终点 ---
-    # 绘制起点
-    start_x, start_y = drone_traj[0]
-    plt.scatter(start_x, start_y, s=200, c='blue', marker='s', zorder=5) # 增大 marker size
-    plt.text(start_x + 8, start_y + 8, "Start", fontsize=FONT_SIZE, color='blue', fontweight=FONT_WEIGHT, zorder=5)
-
-    # 绘制终点
-    end_x, end_y = drone_traj[-1]
-    plt.scatter(end_x, end_y, s=200, c='black', marker='X', zorder=5) # 增大 marker size
-    plt.text(end_x + 8, end_y + 8, "End", fontsize=FONT_SIZE, color='black', fontweight=FONT_WEIGHT, zorder=5)
-
-
-    # --- 4. 绘制目标点 (优化标注) ---
-    target_points = np.array([v[:2] for v in points_dict.values()])
-    point_names = list(points_dict.keys())
-    point_steps = np.array([v[2] for v in points_dict.values()])
-
-    colors = plt.cm.get_cmap('tab10', len(target_points))
-    for i, (pt, name, step) in enumerate(zip(target_points, point_names, point_steps)):
-        # 绘制点
-        plt.scatter(pt[0], pt[1], s=250, c=[colors(i)], marker='*', # 增大 marker size
-                    edgecolor='black', linewidth=1.5, zorder=4)
+        # 自动保持长宽比：根据图片像素比例计算坐标系中的 Extent
+        # 以宽度为基准进行缩放，高度随比例变动
+        base_w = img_w * SCALE_FACTOR
+        base_h = img_h * SCALE_FACTOR
         
-        # 优化标注
-        if step == 0:
-            label_text = f'{name} (Initial)'
-        else:
-            label_text = f'{name} (Step {step})'
+        # 计算 Extent: [xmin, xmax, ymin, ymax]
+        # 结合平移接口
+        extent = [
+            IMAGE_X_OFFSET, 
+            IMAGE_X_OFFSET + base_w, 
+            IMAGE_Y_OFFSET, 
+            IMAGE_Y_OFFSET + base_h
+        ]
         
-        # 绘制标注 - 统一加粗，字体大小 14
-        plt.text(pt[0] + 10, pt[1] + 10, label_text, fontsize=FONT_SIZE, 
-                color=colors(i), fontweight=FONT_WEIGHT, zorder=5)
+        # 绘制底图，根据你的要求使用 origin='upper'
+        plt.imshow(img, origin='upper', extent=extent, alpha=0.8)
+        print(f"底图已加载。像素尺寸: {img_w}x{img_h}，映射坐标范围: {extent}")
+    else:
+        print(f"警告：未找到底图 {img_path}")
 
+    # 绘制轨迹
+    if len(trajectory_np) > 0:
+        plot_traj = trajectory_np + np.array([TRAJ_X_OFFSET, TRAJ_Y_OFFSET])
+        plt.plot(plot_traj[:, 0], plot_traj[:, 1], color='cyan', linewidth=2, label='UAV Path', zorder=10)
+        plt.scatter(plot_traj[0, 0], plot_traj[0, 1], c='lime', marker='s', s=100, label='Start', zorder=11)
+        plt.scatter(plot_traj[-1, 0], plot_traj[-1, 1], c='red', marker='X', s=100, label='End', zorder=11)
 
-    # --- 5. 添加图表元素 (统一加粗，字体大小 14) ---
-    plt.title(f"Drone Trajectory (Total Steps: {total_steps})", fontsize=FONT_SIZE, fontweight=FONT_WEIGHT)
-    plt.xlabel("X/meters", fontsize=FONT_SIZE, fontweight=FONT_WEIGHT)
-    plt.ylabel("Y/meters", fontsize=FONT_SIZE, fontweight=FONT_WEIGHT)
+    # 绘制目标点
+    for name, pos in points_dict.items():
+        plt.scatter(pos[0], pos[1], c='yellow', marker='*', s=200, edgecolors='black', zorder=12)
+        plt.text(pos[0]+15, pos[1]+15, name, color='white', fontsize=12, fontweight='bold',
+                bbox=dict(facecolor='black', alpha=0.5, edgecolor='none'))
 
-    # 调整刻度标签字体大小和粗细
-    plt.tick_params(axis='both', which='major', labelsize=FONT_SIZE) 
+    # 完善图表
+    plt.title(f"Evaluation Trajectory: {args.env_name}")
+    plt.xlabel("X / meters")
+    plt.ylabel("Y / meters")
+    plt.legend()
+    # plt.grid(True, linestyle='--', alpha=0.3)
+    plt.axis('equal') # 极其重要：确保坐标轴比例一致，图片不会被拉伸
 
-    plt.grid(True, linestyle='--', alpha=0.6)
-    plt.axis("equal")
-
-    # 图例字体统一加粗，字体大小 14
-    legend = plt.legend(loc='lower left', fontsize=FONT_SIZE) 
-    for text in legend.get_texts():
-        text.set_fontweight(FONT_WEIGHT)
-
-    plt.tight_layout()
-    plt.savefig('./drone_trajectory.jpg', dpi=300)
+    # 保存结果
+    save_path = "Evaluate_Result.png"
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"保存成功：{save_path}")
     plt.show()
