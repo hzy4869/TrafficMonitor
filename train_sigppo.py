@@ -51,7 +51,7 @@ def get_config():
     parser.add_argument('--env_name', type=str, default="LONG_GANG_modified", help='The name of environment')
     # parser.add_argument('--env_name', type=str, default="Nguyen_Dupuis", help='The name of environment')
     parser.add_argument('--speed', type=int, default=160, help="100,160,320") # speed决定了地图的scale
-    parser.add_argument('--num_envs', type=int, default=8, help='The number of environments')
+    parser.add_argument('--num_envs', type=int, default=10, help='The number of environments')
     parser.add_argument('--policy_model', type=str, default="fusion", help='policy network: baseline_models or fusion_models_0')
     parser.add_argument('--features_dim', type=int, default=512, help='The dimension of output features 64')
     parser.add_argument('--num_seconds', type=int, default=500, help='exploration steps')
@@ -71,8 +71,11 @@ def get_config():
         'drone_1': {
             "aircraft_type": "drone",
             "action_type": "horizontal_movement", # combined_movement
-            # "position": (0, 0, 50), "speed": 10, "heading": (1, 1, 0), "communication_range": 50,
-            "position": (1062, 1282, 50), "speed": 20, "heading": (1, 1, 0), "communication_range": 50,
+            ## Exp 1.
+            # "position": (1062, 1282, 50), "speed": 20, "heading": (1, 1, 0), "communication_range": 50,
+            ## Exp 2.
+            # "position": (1457, 1164, 50), "speed": 20, "heading": (1, 1, 0), "communication_range": 50,
+            "position": (2185, 1746, 50), "speed": 20, "heading": (1, 1, 0), "communication_range": 50,
             "if_sumo_visualization": True, "img_file": path_convert('./asset/drone.png'),
             "custom_update_cover_radius": custom_update_cover_radius  # 使用自定义覆盖范围的计算
         },
@@ -137,6 +140,11 @@ if __name__ == '__main__':
     from train_utils.baseline_models import CustomModel
     policy_models = CustomModel
 
+    policy_kwargs = dict(
+        features_extractor_class=CustomModel,
+        features_extractor_kwargs=dict(features_dim=args.features_dim),
+    )
+
     model = PPO(
                 "MultiInputPolicy", # "MultiInputPolicy""MlpPolicy"
                 env,
@@ -146,6 +154,7 @@ if __name__ == '__main__':
                 learning_rate= linear_schedule(args.lr), #linear_schedule(args.lr), # args.lr # cosine_annealing_schedule(args.lr, final_lr=1e-5, total_timesteps=5e5)
                 verbose=True, 
                 # policy_kwargs=policy_kwargs, 
+                policy_kwargs=policy_kwargs,
                 tensorboard_log=tensorboard_path, 
                 device=device,
                 ent_coef=0.03

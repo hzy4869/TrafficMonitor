@@ -31,31 +31,36 @@ class ACEnvWrapper(gym.Wrapper):
             4: (speed, 4), 5: (speed, 5), 6: (speed, 6), 7: (speed, 7),
         }
 
-
+        ## Exp 1.
+        # self.points = {
+        #     "A": np.array([1408, 955, 0]),
+        #     "B": np.array([1817, 1387, 20]),
+        #     "C": np.array([2063, 1053, 0]),
+        #     "D": np.array([1978, 776, 55]),
+        #     "E": np.array([2553, 861, 0])
+        # }
+        ## Exp 2.
         self.points = {
-            "A": np.array([1408, 955, 0]),
-            "B": np.array([1817, 1387, 20]),
-            "C": np.array([2063, 1053, 0]),
-            "D": np.array([1978, 776, 55]),
-            "E": np.array([2553, 861, 0])
+            "A": np.array([2050, 1722, 5]),
+            "B": np.array([2503, 1573, 0]),
+            "C": np.array([2715, 1458, 0]),
+            "D": np.array([2824, 1678, 0]),
+            "E": np.array([3147, 1644, 0])
         }
+
+        xs = [p[0] for p in self.points.values()]
+        ys = [p[1] for p in self.points.values()]
+
         self.boundary = {
-            "xmin": 900,
-            "xmax": 2600,
-            "ymin": 700,
-            "ymax": 2100,
+            "xmin": min(xs) - 100,
+            "xmax": max(xs) + 100,
+            "ymin": min(ys) - 100,
+            "ymax": max(ys) + 100,
         }
+
 
         # sequential: A, B, C, D, E
         self.visible_set = [False] * len(self.points)
-        # self.reward_bins = [
-        #     (100, 50, 1.0),
-        #     (50, 40, 2.0),
-        #     (40, 30, 3.0),
-        #     (30, 20, 4.0),
-        #     (20, 10, 8.0),
-        #     (10, 0, 12.0)
-        # ]
         self.reward_bins = [
             # (上限, 下限, 奖励值)
             (500, 450, 0.5),
@@ -67,21 +72,32 @@ class ACEnvWrapper(gym.Wrapper):
             (200, 150, 5.0),
             (150, 100, 6.0),
             (100, 50,  8.0),  # 倒数第二层从 8 开始
-            (50,  0,   12.0)  # 核心区域最大奖励 12
+            (50,  0,   12.0),
+            # (25,  0,   12.0),  # 核心区域最大奖励 12
+            # (25,  0,   14.0),
         ]
 
-        self.grid_size = 100
-        self.grid_x_num = (self.boundary["xmax"] - self.boundary["xmin"]) // self.grid_size  # 5
-        self.grid_y_num = (self.boundary["ymax"] - self.boundary["ymin"]) // self.grid_size  # 4
-        self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
+        # self.grid_size = 100
+        # self.grid_x_num = (self.boundary["xmax"] - self.boundary["xmin"]) // self.grid_size  # 5
+        # self.grid_y_num = (self.boundary["ymax"] - self.boundary["ymin"]) // self.grid_size  # 4
+        # self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
 
-
+        # self.covered
+        # [num_of_points * reward_bin_length] 
+        # for each i in covered --> the last one represent whether it reach the target points.
         self.covered = {key: [False]*len(self.reward_bins) for key in self.points.keys()}
         self.global_step_count = 0
 
         ## 通信信号差的区域，禁止进入
         self.punish_center = np.array([1235.0, 1118.5])
         self.punish_radius = 50.0
+
+        # redefine the logic of the probability of the target points.
+        # point备份
+        self.base_points = {
+            k: v.copy() for k, v in self.points.items()
+        }
+
 
 
 
@@ -170,7 +186,7 @@ class ACEnvWrapper(gym.Wrapper):
             for (key, point), vis in zip(self.points.items(), self.visible_set)
         ])
 
-        self.update_grid_counter(pos)
+        # self.update_grid_counter(pos)
 
         # 构造简单观测
         obs = {
@@ -221,14 +237,23 @@ class ACEnvWrapper(gym.Wrapper):
                     self.covered[key][i] = True  # 该阶段奖励只给一次
                     break  # 一个阶段匹配后就退出
 
+
+            # 细微奖励。 updated in 2026/2/4
+            if dist <= 50:
+                reward += 0.2 * (1 - dist / 50)
+
+
         # 障碍物区域
         # dist_to_punish_center = np.linalg.norm(drone_pos[:2] - self.punish_center)
         # if dist_to_punish_center <= self.punish_radius:
         #     reward = -10.0
 
-        # done 判断：所有点全部覆盖
-        if all(all(v) for v in self.covered.values()):
+        # done 判断：所有点全部覆盖 
+        # --> updated at 2026/1/27: the last value (inner circle) counted.
+        
+        if all(v[-1] for v in self.covered.values()):
             done = True
+        # print(self.covered.values())
 
         return reward, done
 
@@ -242,10 +267,22 @@ class ACEnvWrapper(gym.Wrapper):
 
         self.visible_set = [False] * len(self.points)
         self.covered = {key: [False]*len(self.reward_bins) for key in self.points.keys()}
-        self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
+        # self.grid_counter = np.zeros((self.grid_y_num, self.grid_x_num), dtype=np.int32)
         self.global_step_count = 0
 
         self.prev_dist = None
+
+        # prob. 每个聚集点变为概率出现，服从Bernoulli分布。
+        # Evaluation中需要关闭。
+        # self.points = {
+        #     k: v.copy() for k, v in self.base_points.items()
+        # }
+        # for name, point in self.points.items():
+        #     if np.random.rand() < 0.8:
+        #         pass
+        #     else:
+        #         # 不出现，设置600是因为环境只有500个step。
+        #         point[2] = 600
 
         return obs, {"step_time": 0}
 

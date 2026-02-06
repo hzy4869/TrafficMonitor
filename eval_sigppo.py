@@ -71,6 +71,10 @@ if __name__ == '__main__':
 
     # 使用模型进行测试
     obs = env.reset()
+    points_list = env.get_attr("points")
+    points_dict = {
+        k: v.copy() for k, v in points_list[0].items()
+    }
 
     dones = False
     total_reward = 0.0
@@ -96,77 +100,68 @@ if __name__ == '__main__':
 
     #########
     ## 绘图
+    # # 1. exp 1
+    # SCALE_FACTOR = 1.5    # 整体缩放系数 (1.0表示原始比例，数值越大地图在坐标系中越大)
+    # IMAGE_X_OFFSET = 550.0  # 图片在X轴的偏移量
+    # IMAGE_Y_OFFSET = 450.0  # 图片在Y轴的偏移量
     
-    # ==================== 接口参数 (调整这里) ====================
-    # 1. 缩放与平移接口
-    SCALE_FACTOR = 1.5    # 整体缩放系数 (1.0表示原始比例，数值越大地图在坐标系中越大)
-    IMAGE_X_OFFSET = 550.0  # 图片在X轴的偏移量
-    IMAGE_Y_OFFSET = 450.0  # 图片在Y轴的偏移量
+    # exp 2
+    SCALE_FACTOR = 1.4    
+    IMAGE_X_OFFSET = 1830.0  
+    IMAGE_Y_OFFSET = 850.0  
 
-    # 2. 轨迹微调 (如果轨迹相对于地图有偏移)
     TRAJ_X_OFFSET = 0.0
     TRAJ_Y_OFFSET = 0.0
     # ==========================================================
 
-    # 轨迹数据处理
-    trajectory_np = np.array(trajectory)
-    points_dict = {
-        "A": np.array([1408, 955, 0]),
-        "B": np.array([1817, 1387, 30]),
-        "C": np.array([2063, 1053, 0]),
-        "D": np.array([1978, 776, 55]),
-        "E": np.array([2553, 861, 0])
-    }
+    # 1. 轨迹数据处理：减去偏移量实现归零
+    trajectory_np = np.array(trajectory) - np.array([IMAGE_X_OFFSET, IMAGE_Y_OFFSET])
 
     # 绘制初始化
     plt.figure(figsize=(12, 10))
 
     # 读取图片并计算等比例范围
-    img_path = f"./sumo_envs/{args.env_name}/env/osm.png"
+    img_path = f"./sumo_envs/{args.env_name}/env/Manhattan.png"
     if os.path.exists(img_path):
         img = mpimg.imread(img_path)
-        img_h, img_w = img.shape[:2] # 获取图片像素高度和宽度
+        img_h, img_w = img.shape[:2] 
         
-        # 自动保持长宽比：根据图片像素比例计算坐标系中的 Extent
-        # 以宽度为基准进行缩放，高度随比例变动
         base_w = img_w * SCALE_FACTOR
         base_h = img_h * SCALE_FACTOR
         
-        # 计算 Extent: [xmin, xmax, ymin, ymax]
-        # 结合平移接口
-        extent = [
-            IMAGE_X_OFFSET, 
-            IMAGE_X_OFFSET + base_w, 
-            IMAGE_Y_OFFSET, 
-            IMAGE_Y_OFFSET + base_h
-        ]
+        # 2. 底图范围修改：从 0 开始显示，不再带偏移量值
+        extent = [0, base_w, 0, base_h]
         
-        # 绘制底图，根据你的要求使用 origin='upper'
         plt.imshow(img, origin='upper', extent=extent, alpha=0.8)
-        print(f"底图已加载。像素尺寸: {img_w}x{img_h}，映射坐标范围: {extent}")
+        print(f"底图已加载。坐标已归零。映射范围: {extent}")
     else:
         print(f"警告：未找到底图 {img_path}")
 
     # 绘制轨迹
     if len(trajectory_np) > 0:
         plot_traj = trajectory_np + np.array([TRAJ_X_OFFSET, TRAJ_Y_OFFSET])
-        plt.plot(plot_traj[:, 0], plot_traj[:, 1], color='cyan', linewidth=2, label='UAV Path', zorder=10)
-        plt.scatter(plot_traj[0, 0], plot_traj[0, 1], c='lime', marker='s', s=100, label='Start', zorder=11)
-        plt.scatter(plot_traj[-1, 0], plot_traj[-1, 1], c='red', marker='X', s=100, label='End', zorder=11)
+        # 路径颜色：deepskyblue
+        plt.plot(plot_traj[:, 0], plot_traj[:, 1], color='deepskyblue', linewidth=2, label='RL path', zorder=10)
+        # 起点形状：三角形 '^'，颜色：darkblue
+        plt.scatter(plot_traj[0, 0], plot_traj[0, 1], c='darkblue', marker='^', s=100, label='UAM start', zorder=11)
 
     # 绘制目标点
-    for name, pos in points_dict.items():
-        plt.scatter(pos[0], pos[1], c='yellow', marker='*', s=200, edgecolors='black', zorder=12)
-        plt.text(pos[0]+15, pos[1]+15, name, color='white', fontsize=12, fontweight='bold',
-                bbox=dict(facecolor='black', alpha=0.5, edgecolor='none'))
+    # 绘制目标点
+        for name, pos in points_dict.items():
+            # pos 可能包含 (x, y, z)，通过 [:2] 截取前两个，确保和偏移量的维度一致
+            rel_pos = np.array(pos[:2]) - np.array([IMAGE_X_OFFSET, IMAGE_Y_OFFSET])
+            
+            plt.scatter(rel_pos[0], rel_pos[1], c='#2ECC71', marker='*', s=200, zorder=12)
+            plt.text(rel_pos[0]+15, rel_pos[1]+15, name, color='white', fontsize=12, fontweight='bold',
+                    bbox=dict(facecolor='black', alpha=0.5, edgecolor='none'))
 
     # 完善图表
-    plt.title(f"Evaluation Trajectory: {args.env_name}")
-    plt.xlabel("X / meters")
-    plt.ylabel("Y / meters")
     plt.legend()
-    # plt.grid(True, linestyle='--', alpha=0.3)
-    plt.axis('equal') # 极其重要：确保坐标轴比例一致，图片不会被拉伸
+    # plt.axis('equal') 
+    
+    # 强制显示范围从 0 开始
+    plt.xlim(left=0)
+    plt.ylim(bottom=0)
 
     # 保存结果
     save_path = "Evaluate_Result.png"
